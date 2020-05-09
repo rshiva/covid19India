@@ -3,19 +3,27 @@ defmodule CovidIndia.CovidAdapter do
   alias CovidIndia.Person
 
   def call() do
-    HTTPoison.start()
-    url = "https://api.covid19india.org/raw_data3.json"
-    case HTTPoison.get(url) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
-        IO.puts "----I'm not called all the time "
-        decoded_data = Jason.decode!(body)
-        api_struct_data = Enum.map(decoded_data["raw_data"],&Person.new/1)
-        write_cache_data(api_struct_data)
-      {:ok, %HTTPoison.Response{status_code: 404}} ->
-        IO.puts "Not found :("
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        IO.inspect reason
+    url1 = "https://api.covid19india.org/raw_data1.json"
+    url2 = "https://api.covid19india.org/raw_data2.json"
+    url3 = "https://api.covid19india.org/raw_data3.json"
+
+    pids = Enum.map([url1, url2, url3], fn(url) -> Task.async(fn -> HTTPoison.get(url) end) end)
+    bodies = Enum.flat_map(pids,
+    fn(pid) ->
+      case Task.await(pid,10000) do
+        {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+          decoded_data = Jason.decode!(body)
+          Enum.map(decoded_data["raw_data"],&Person.new/1)
+        {:ok, %HTTPoison.Response{status_code: 404}} ->
+          IO.puts "Not found :("
+        {:error, %HTTPoison.Error{reason: reason}} ->
+          IO.inspect reason
+        end
     end
+    )
+    IO.puts "3 async all and caching it"
+    write_cache_data(List.flatten(bodies))
+
   end
 
   def search_by_state(state) do
