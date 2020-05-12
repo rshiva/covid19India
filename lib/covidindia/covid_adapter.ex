@@ -7,7 +7,10 @@ defmodule CovidIndia.CovidAdapter do
     url2 = "https://api.covid19india.org/raw_data2.json"
     url3 = "https://api.covid19india.org/raw_data3.json"
 
-    pids = Enum.map([url1, url2, url3], fn(url) -> Task.async(fn -> HTTPoison.get(url) end) end)
+    pids = Enum.map([url1, url2, url3],
+            fn(url) ->
+              Task.async(fn -> HTTPoison.get(url) end) end)
+
     bodies = Enum.flat_map(pids,
     fn(pid) ->
       case Task.await(pid,10000) do
@@ -44,7 +47,6 @@ defmodule CovidIndia.CovidAdapter do
   end
 
   def search_wise_recovered_count(collection) do
-    # IO.puts "----- #{Enum.filter(collection,&(&1.detectedstate))}"
     collection
       |> Enum.filter(&(&1.currentstatus == "Recovered"))
       |> Enum.count()
